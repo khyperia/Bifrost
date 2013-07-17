@@ -4,7 +4,7 @@ namespace Bifrost
 {
     public interface ISystemMonitor
     {
-        void SetScreen(uint[] rgb, int width);
+        void SetScreen(int[] rgb, int width);
     }
 
     public class Lem1802 : IHardware
@@ -16,7 +16,7 @@ namespace Bifrost
         private readonly ISystemMonitor _systemMonitor;
         private const int Width = 128;
         private const int Height = 96;
-        private readonly uint[] _rgb = new uint[Width * Height];
+        private readonly int[] _rgb = new int[Width * Height];
         private ushort _vram;
         private ushort _font;
         private ushort _palette;
@@ -83,7 +83,7 @@ namespace Bifrost
             return _font == 0 ? DefaultFont[fontIndex] : cpu.Memory[_font + fontIndex];
         }
 
-        private void PrintToRgb(int baseX, int baseY, byte word, uint foreground, uint background)
+        private void PrintToRgb(int baseX, int baseY, byte word, int foreground, int background)
         {
             for (var dy = 0; dy < 8; dy++)
             {
@@ -109,8 +109,8 @@ namespace Bifrost
                 var bgcolor = GetColor(cpu, (byte)(word >> 8 & 0xf));
                 var fgcolor = GetColor(cpu, (byte)(word >> 12 & 0xf));
 
-                var bg = (uint)((bgcolor & 0xf00 << 20) | (bgcolor & 0xf0 << 12) | (bgcolor & 0xf << 4));
-                var fg = (uint)((fgcolor & 0xf00 << 20) | (fgcolor & 0xf0 << 12) | (fgcolor & 0xf << 4));
+                var bg = (bgcolor & 0xf00 << 20) | (bgcolor & 0xf0 << 12) | (bgcolor & 0xf << 4);
+                var fg = (fgcolor & 0xf00 << 20) | (fgcolor & 0xf0 << 12) | (fgcolor & 0xf << 4);
 
                 if (blinking && nowIsBlink)
                     fg = bg;
