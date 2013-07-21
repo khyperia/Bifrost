@@ -74,6 +74,12 @@ namespace Bifrost
             _hardware.Add(hardware);
         }
 
+        public void LoadProgram(ushort[] program)
+        {
+            Reset();
+            Array.Copy(program, _memory, program.Length);
+        }
+
         private ushort GetValueForArg(byte arg, bool isInA)
         {
             switch (arg)
@@ -94,14 +100,14 @@ namespace Bifrost
                 case 0x0d: return _memory[_z];
                 case 0x0e: return _memory[_i];
                 case 0x0f: return _memory[_j];
-                case 0x10: _cycle++; return _memory[_a + _memory[_pc++]];
-                case 0x11: _cycle++; return _memory[_b + _memory[_pc++]];
-                case 0x12: _cycle++; return _memory[_c + _memory[_pc++]];
-                case 0x13: _cycle++; return _memory[_x + _memory[_pc++]];
-                case 0x14: _cycle++; return _memory[_y + _memory[_pc++]];
-                case 0x15: _cycle++; return _memory[_z + _memory[_pc++]];
-                case 0x16: _cycle++; return _memory[_i + _memory[_pc++]];
-                case 0x17: _cycle++; return _memory[_j + _memory[_pc++]];
+                case 0x10: _cycle++; return _memory[(ushort)(_a + _memory[_pc++])];
+                case 0x11: _cycle++; return _memory[(ushort)(_b + _memory[_pc++])];
+                case 0x12: _cycle++; return _memory[(ushort)(_c + _memory[_pc++])];
+                case 0x13: _cycle++; return _memory[(ushort)(_x + _memory[_pc++])];
+                case 0x14: _cycle++; return _memory[(ushort)(_y + _memory[_pc++])];
+                case 0x15: _cycle++; return _memory[(ushort)(_z + _memory[_pc++])];
+                case 0x16: _cycle++; return _memory[(ushort)(_i + _memory[_pc++])];
+                case 0x17: _cycle++; return _memory[(ushort)(_j + _memory[_pc++])];
                 case 0x18: return isInA ? _memory[_sp++] : _memory[--_sp];
                 case 0x19: return _memory[_sp];
                 case 0x1a: _cycle++; return _memory[_sp + _memory[_pc++]];
@@ -137,14 +143,14 @@ namespace Bifrost
                 case 0x0d: _memory[_z] = value; break;
                 case 0x0e: _memory[_i] = value; break;
                 case 0x0f: _memory[_j] = value; break;
-                case 0x10: _cycle++; _memory[_a + _memory[_pc++]] = value; break;
-                case 0x11: _cycle++; _memory[_b + _memory[_pc++]] = value; break;
-                case 0x12: _cycle++; _memory[_c + _memory[_pc++]] = value; break;
-                case 0x13: _cycle++; _memory[_x + _memory[_pc++]] = value; break;
-                case 0x14: _cycle++; _memory[_y + _memory[_pc++]] = value; break;
-                case 0x15: _cycle++; _memory[_z + _memory[_pc++]] = value; break;
-                case 0x16: _cycle++; _memory[_i + _memory[_pc++]] = value; break;
-                case 0x17: _cycle++; _memory[_j + _memory[_pc++]] = value; break;
+                case 0x10: _cycle++; _memory[(ushort)(_a + _memory[_pc++])] = value; break;
+                case 0x11: _cycle++; _memory[(ushort)(_b + _memory[_pc++])] = value; break;
+                case 0x12: _cycle++; _memory[(ushort)(_c + _memory[_pc++])] = value; break;
+                case 0x13: _cycle++; _memory[(ushort)(_x + _memory[_pc++])] = value; break;
+                case 0x14: _cycle++; _memory[(ushort)(_y + _memory[_pc++])] = value; break;
+                case 0x15: _cycle++; _memory[(ushort)(_z + _memory[_pc++])] = value; break;
+                case 0x16: _cycle++; _memory[(ushort)(_i + _memory[_pc++])] = value; break;
+                case 0x17: _cycle++; _memory[(ushort)(_j + _memory[_pc++])] = value; break;
                 case 0x18: if (isInA) _memory[_sp++] = value; else _memory[--_sp] = value; break;
                 case 0x19: _memory[_sp] = value; break;
                 case 0x1a: _cycle++; _memory[_sp + _memory[_pc++]] = value; break;
@@ -160,12 +166,31 @@ namespace Bifrost
             }
         }
 
-        private void RunOpcode()
+        private void SkipIfChain()
+        {
+            byte opcode;
+            do
+            {
+                _cycle++;
+                var instruction = Memory[_pc++];
+                opcode = (byte)(instruction & 0x1F);
+                var a = (byte)(instruction >> 10 & 0x3f);
+                var b = (byte)(instruction >> 5 & 0x1f);
+                var spOld = _sp;
+                GetValueForArg(a, true);
+                GetValueForArg(b, false);
+                _sp = spOld;
+            } while (opcode >= 0x10 && opcode <= 0x17);
+        }
+
+        private void RunOpcode(bool debug)
         {
             var instruction = _memory[_pc++];
-            var opcode = (byte)(instruction & 0xfffff);
-            var a = (byte)(instruction >> 10 & 0xffffff);
-            var b = (byte)(instruction >> 5 & 0xfffff);
+            if (debug)
+            Console.Write("{0} 0x{1:x4} ", _cycle, _pc);
+            var opcode = (byte)(instruction & 0x1f);
+            var a = (byte)(instruction >> 10 & 0x3f);
+            var b = (byte)(instruction >> 5 & 0x1f);
             var va = opcode == 0x00 || opcode == 0x1e || opcode == 0x1f ? (ushort)0 : GetValueForArg(a, true);
             var vb = opcode == 0x00 || opcode == 0x01 ? (ushort)0 : GetValueForArg(b, false);
 
@@ -176,36 +201,45 @@ namespace Bifrost
                     {
                         case 0x01: // JSR
                             _cycle += 3;
+                            if (debug) Console.WriteLine("JSR");
+                            var newPc = GetValueForArg(a, true);
                             _memory[--_sp] = _pc;
-                            _pc = GetValueForArg(a, true);
+                            _pc = newPc;
                             break;
                         case 0x08: // INT
+                            if (debug) Console.WriteLine("INT");
                             SendInterrupt(new Interrupt(GetValueForArg(a, true)));
                             _cycle += 4;
                             break;
                         case 0x09: // IAG
+                            if (debug) Console.WriteLine("IAG");
                             _cycle += 1;
                             SetValueForArg(a, true, _ia);
                             break;
                         case 0x0a: // IAS
+                            if (debug) Console.WriteLine("IAS");
                             _cycle += 1;
                             _ia = GetValueForArg(a, true);
                             break;
                         case 0x0b: // RFI
+                            if (debug) Console.WriteLine("RFI");
                             _cycle += 3;
                             _a = _memory[_sp++];
                             _pc = _memory[_sp++];
                             _interruptQueueEnabled = false;
                             break;
                         case 0x0c: // IAQ
+                            if (debug) Console.WriteLine("IAQ");
                             _cycle += 2;
                             _interruptQueueEnabled = GetValueForArg(a, true) != 0;
                             break;
                         case 0x10: // HWN
+                            if (debug) Console.WriteLine("HWN");
                             _cycle += 2;
                             SetValueForArg(a, true, (ushort)_hardware.Count);
                             break;
                         case 0x11: // HWQ
+                            if (debug) Console.WriteLine("HWQ");
                             _cycle += 4;
                             va = GetValueForArg(a, true);
                             if (va < _hardware.Count)
@@ -221,20 +255,23 @@ namespace Bifrost
                                 _a = _b = _c = _x = _y = 0;
                             break;
                         case 0x12: // HWI
+                            if (debug) Console.WriteLine("HWI");
                             va = GetValueForArg(a, true);
                             if (va < _hardware.Count)
                                 _cycle += _hardware[va].DoInterrupt(this);
                             _cycle += 4;
                             break;
                         default:
-                            throw new Exception(string.Format("Invalid special opcode {0}", b));
+                            throw new Exception(string.Format("Invalid special opcode {0:x}", b));
                     }
                     break;
                 case 0x01: // SET
+                    if (debug) Console.WriteLine("SET");
                     _cycle += 1;
                     SetValueForArg(b, false, va);
                     break;
                 case 0x02: // ADD
+                    if (debug) Console.WriteLine("ADD");
                     _cycle += 2;
                     try
                     {
@@ -248,6 +285,7 @@ namespace Bifrost
                     }
                     break;
                 case 0x03: // SUB
+                    if (debug) Console.WriteLine("SUB");
                     _cycle += 2;
                     try
                     {
@@ -261,16 +299,19 @@ namespace Bifrost
                     }
                     break;
                 case 0x04: // MUL
+                    if (debug) Console.WriteLine("MUL");
                     _cycle += 2;
                     SetValueForArg(b, false, (ushort)(vb * va));
                     _ex = (ushort)(((vb * va) >> 16) & 0xffff);
                     break;
                 case 0x05: // MLI
+                    if (debug) Console.WriteLine("MLI");
                     _cycle += 2;
                     SetValueForArg(b, false, (ushort)((short)vb * (short)va));
                     _ex = (ushort)(((ushort)((short)vb * (short)va) >> 16) & 0xffff);
                     break;
                 case 0x06: // DIV
+                    if (debug) Console.WriteLine("DIV");
                     _cycle += 3;
                     if (va == 0)
                     {
@@ -284,6 +325,7 @@ namespace Bifrost
                     }
                     break;
                 case 0x07: // DVI
+                    if (debug) Console.WriteLine("DVI");
                     _cycle += 3;
                     if (va == 0)
                     {
@@ -297,105 +339,98 @@ namespace Bifrost
                     }
                     break;
                 case 0x08: // MOD
+                    if (debug) Console.WriteLine("MOD");
                     _cycle += 3;
                     SetValueForArg(b, false, va == 0 ? (ushort)0 : (ushort)(vb % va));
                     break;
                 case 0x09: // MDI
+                    if (debug) Console.WriteLine("MDI");
                     _cycle += 3;
                     SetValueForArg(b, false, va == 0 ? (ushort)0 : (ushort)((short)vb % (short)va));
                     break;
                 case 0x0a: // AND
+                    if (debug) Console.WriteLine("AND");
                     _cycle += 1;
                     SetValueForArg(b, false, (ushort)(va & vb));
                     break;
                 case 0x0b: // BOR
+                    if (debug) Console.WriteLine("BOR");
                     _cycle += 1;
                     SetValueForArg(b, false, (ushort)(va | vb));
                     break;
                 case 0x0c: // XOR
+                    if (debug) Console.WriteLine("XOR");
                     _cycle += 1;
                     SetValueForArg(b, false, (ushort)(va ^ vb));
                     break;
                 case 0x0d: // SHR
+                    if (debug) Console.WriteLine("SHR");
                     _cycle += 1;
                     SetValueForArg(b, false, (ushort)(vb >> va));
                     _ex = (ushort)(((vb << 16) >> va) & 0xffff);
                     break;
                 case 0x0e: // ASR
+                    if (debug) Console.WriteLine("ASR");
                     _cycle += 1;
                     SetValueForArg(b, false, (ushort)((short)vb >> va));
                     _ex = (ushort)((((short)vb << 16) >> va) & 0xffff);
                     break;
                 case 0x0f: // SHL
+                    if (debug) Console.WriteLine("SHL");
                     _cycle += 1;
                     SetValueForArg(b, false, (ushort)(vb << va));
                     _ex = (ushort)(((vb << va) >> 16) & 0xffff);
                     break;
                 case 0x10: // IFB
+                    if (debug) Console.WriteLine("IFB");
                     _cycle += 2;
                     if ((va & vb) == 0)
-                    {
-                        _pc++;
-                        _cycle++;
-                    }
+                        SkipIfChain();
                     break;
                 case 0x11: // IFC
+                    if (debug) Console.WriteLine("IFC");
                     _cycle += 2;
                     if ((va & vb) != 0)
-                    {
-                        _pc++;
-                        _cycle++;
-                    }
+                        SkipIfChain();
                     break;
                 case 0x12: // IFE
+                    if (debug) Console.WriteLine("IFE");
                     _cycle += 2;
                     if (va != vb)
-                    {
-                        _pc++;
-                        _cycle++;
-                    }
+                        SkipIfChain();
                     break;
                 case 0x13: // IFN
+                    if (debug) Console.WriteLine("IFN");
                     _cycle += 2;
                     if (va == vb)
-                    {
-                        _pc++;
-                        _cycle++;
-                    }
+                        SkipIfChain();
                     break;
                 case 0x14: // IFG
+                    if (debug) Console.WriteLine("IFG");
                     _cycle += 2;
                     if (!(va > vb))
-                    {
-                        _pc++;
-                        _cycle++;
-                    }
+                        SkipIfChain();
                     break;
                 case 0x15: // IFA
+                    if (debug) Console.WriteLine("IFA");
                     _cycle += 2;
-                    if (!((short)va > (short)vb))
-                    {
-                        _pc++;
-                        _cycle++;
-                    }
+                    if (!((short) va > (short) vb))
+                        SkipIfChain();
                     break;
                 case 0x16: // IFL
+                    if (debug) Console.WriteLine("IFL");
                     _cycle += 2;
                     if (!(va < vb))
-                    {
-                        _pc++;
-                        _cycle++;
-                    }
+                        SkipIfChain();
                     break;
                 case 0x17: // IFU
+                    if (debug) Console.WriteLine("IFU");
                     _cycle += 2;
-                    if (!((short)va < (short)vb))
-                    {
-                        _pc++;
-                        _cycle++;
-                    }
+                    if (!((short) va < (short) vb))
+                        SkipIfChain();
                     break;
                 case 0x1a: // ADX
+                    if (debug) Console.WriteLine("ADX");
                     _cycle += 3;
                     var vaAdx = va;
                     var vbAdx = vb;
@@ -411,6 +446,7 @@ namespace Bifrost
                     }
                     break;
                 case 0x1b: // SBX
+                    if (debug) Console.WriteLine("SBX");
                     _cycle += 3;
                     var vaSbx = va;
                     var vbSbx = vb;
@@ -426,19 +462,21 @@ namespace Bifrost
                     }
                     break;
                 case 0x1e: // STI
+                    if (debug) Console.WriteLine("STI");
                     _cycle += 2;
                     SetValueForArg(a, true, vb);
                     _i++;
                     _j++;
                     break;
                 case 0x1f: // STD
+                    if (debug) Console.WriteLine("STD");
                     _cycle += 2;
                     SetValueForArg(a, true, vb);
                     _i--;
                     _j--;
                     break;
                 default:
-                    throw new Exception(string.Format("Invalid opcode {0}", opcode));
+                    throw new Exception(string.Format("Invalid opcode {0:x}", opcode));
             }
         }
 
@@ -459,18 +497,20 @@ namespace Bifrost
             var newTime = DateTime.UtcNow;
             var timeSinceLastUpdate = newTime - _lastUpdateCallTime;
             _lastUpdateCallTime = newTime;
-            var numCycles = (uint)(TicksPerSecond * timeSinceLastUpdate.TotalSeconds);
+            var numCycles = (uint)Math.Ceiling(TicksPerSecond * timeSinceLastUpdate.TotalSeconds);
+            if (numCycles == 0)
+                return;
 
             foreach (var hardware in _hardware)
                 hardware.ExternalCallback(this);
-            _cycle -= numCycles;
-            if (_cycle < -TicksPerSecond)
-                _cycle = -TicksPerSecond;
-            while (_cycle < 0)
+            if (numCycles > TicksPerSecond)
+                numCycles = TicksPerSecond;
+            while (_cycle < numCycles)
             {
-                RunOpcode();
+                RunOpcode(false);
                 RunInterrupt();
             }
+            _cycle -= numCycles;
         }
     }
 }

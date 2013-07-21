@@ -5,14 +5,14 @@ namespace Bifrost
 {
     public interface ISystemKeyboard
     {
-        event Action<byte> KeyUp;
-        event Action<byte> KeyDown;
+        event Action<ushort> KeyUp;
+        event Action<ushort> KeyDown;
     }
 
     public class GenericKeyboard : IHardware
     {
-        private readonly Queue<byte> _keyQueue = new Queue<byte>();
-        private readonly bool[] _keyState = new bool[0x91];
+        private readonly Queue<ushort> _keyQueue = new Queue<ushort>();
+        private readonly bool[] _keyState = new bool[0x92];
         private bool _doInterrupt;
         private ushort _interruptMessage;
 
@@ -26,7 +26,7 @@ namespace Bifrost
             systemKeyboard.KeyUp += SystemKeyboardOnKeyUp;
         }
 
-        private void SystemKeyboardOnKeyDown(byte b)
+        private void SystemKeyboardOnKeyDown(ushort b)
         {
             _doInterrupt = true;
             _keyQueue.Enqueue(b);
@@ -35,7 +35,7 @@ namespace Bifrost
             _keyState[b] = true;
         }
 
-        private void SystemKeyboardOnKeyUp(byte b)
+        private void SystemKeyboardOnKeyUp(ushort b)
         {
             _keyState[b] = false;
         }

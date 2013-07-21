@@ -16,6 +16,8 @@ namespace Bifrost
         private readonly ISystemMonitor _systemMonitor;
         private const int Width = 128;
         private const int Height = 96;
+        private const int CWidth = 32;
+        private const int CHeight = 12;
         private readonly int[] _rgb = new int[Width * Height];
         private ushort _vram;
         private ushort _font;
@@ -100,11 +102,11 @@ namespace Bifrost
             if (_vram == 0)
                 return;
             var nowIsBlink = DateTime.UtcNow.Millisecond < 500;
-            for (var i = 0; i < Width * Height; i++)
+            for (var i = 0; i < CWidth * CHeight; i++)
             {
                 var word = cpu.Memory[_vram + i];
                 var character = word & 0x7f;
-                var blinking = (word & 0x8f) != 0;
+                var blinking = (word & 0x80) != 0;
 
                 var bgcolor = GetColor(cpu, (byte)(word >> 8 & 0xf));
                 var fgcolor = GetColor(cpu, (byte)(word >> 12 & 0xf));
@@ -118,14 +120,14 @@ namespace Bifrost
                 var fontWordZero = GetFont(cpu, (byte)(character * 2));
                 var fontWordOne = GetFont(cpu, (byte)(character * 2 + 1));
 
-                var cx = i % Width;
-                var cy = i / Width;
+                var cx = i % CWidth;
+                var cy = i / CWidth;
                 var px = cx * 4;
                 var py = cy * 8;
-                PrintToRgb(px + 0, py, (byte)fontWordZero, fg, bg);
-                PrintToRgb(px + 1, py, (byte)(fontWordZero >> 8), fg, bg);
-                PrintToRgb(px + 2, py, (byte)fontWordOne, fg, bg);
-                PrintToRgb(px + 3, py, (byte)(fontWordOne >> 8), fg, bg);
+                PrintToRgb(px + 0, py, (byte)(fontWordZero >> 8), fg, bg);
+                PrintToRgb(px + 1, py, (byte)fontWordZero, fg, bg);
+                PrintToRgb(px + 2, py, (byte)(fontWordOne >> 8), fg, bg);
+                PrintToRgb(px + 3, py, (byte)fontWordOne, fg, bg);
             }
             _systemMonitor.SetScreen(_rgb, Width);
         }
