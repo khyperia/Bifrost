@@ -111,8 +111,8 @@ namespace Bifrost
                 var bgcolor = GetColor(cpu, (byte)(word >> 8 & 0xf));
                 var fgcolor = GetColor(cpu, (byte)(word >> 12 & 0xf));
 
-                var bg = (bgcolor & 0xf00 << 20) | (bgcolor & 0xf0 << 12) | (bgcolor & 0xf << 4);
-                var fg = (fgcolor & 0xf00 << 20) | (fgcolor & 0xf0 << 12) | (fgcolor & 0xf << 4);
+                var bg = ((bgcolor & 0xf00) << 20) | ((bgcolor & 0xf00) << 16) | ((bgcolor & 0xf0) << 12) | ((bgcolor & 0xf0) << 8) | ((bgcolor & 0xf) << 4) | ((bgcolor & 0xf) << 0);
+                var fg = ((fgcolor & 0xf00) << 20) | ((fgcolor & 0xf00) << 16) | ((fgcolor & 0xf0) << 12) | ((fgcolor & 0xf0) << 8) | ((fgcolor & 0xf) << 4) | ((fgcolor & 0xf) << 0);
 
                 if (blinking && nowIsBlink)
                     fg = bg;
