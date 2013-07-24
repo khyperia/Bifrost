@@ -52,6 +52,8 @@ namespace Bifrost
         public ushort Ia { get { return _ia; } set { _ia = value; } }
         public ushort[] Memory { get { return _memory; } }
         public uint ClockCyclesPerSecond { get { return TicksPerSecond; } }
+        public bool InterruptQueueEnabled { get { return _interruptQueueEnabled; } set { _interruptQueueEnabled = value; } }
+        public Queue<Interrupt> Interrupts { get { return _interrupts; } }
 
         public void Reset()
         {
@@ -69,6 +71,11 @@ namespace Bifrost
             _interrupts.Enqueue(interrupt);
         }
 
+        public void ClearHardware()
+        {
+            _hardware.Clear();
+        }
+
         public void AddHardware(IHardware hardware)
         {
             _hardware.Add(hardware);
@@ -76,7 +83,7 @@ namespace Bifrost
 
         public void LoadProgram(ushort[] program)
         {
-            Reset();
+            Array.Clear(_memory, 0, _memory.Length);
             Array.Copy(program, _memory, program.Length);
         }
 
@@ -187,7 +194,7 @@ namespace Bifrost
         {
             var instruction = _memory[_pc++];
             if (debug)
-            Console.Write("{0} 0x{1:x4} ", _cycle, _pc);
+                Console.Write("{0} 0x{1:x4} ", _cycle, _pc);
             var opcode = (byte)(instruction & 0x1f);
             var a = (byte)(instruction >> 10 & 0x3f);
             var b = (byte)(instruction >> 5 & 0x1f);
@@ -414,7 +421,7 @@ namespace Bifrost
                 case 0x15: // IFA
                     if (debug) Console.WriteLine("IFA");
                     _cycle += 2;
-                    if (!((short) va > (short) vb))
+                    if (!((short)va > (short)vb))
                         SkipIfChain();
                     break;
                 case 0x16: // IFL
@@ -426,7 +433,7 @@ namespace Bifrost
                 case 0x17: // IFU
                     if (debug) Console.WriteLine("IFU");
                     _cycle += 2;
-                    if (!((short) va < (short) vb))
+                    if (!((short)va < (short)vb))
                         SkipIfChain();
                     break;
                 case 0x1a: // ADX

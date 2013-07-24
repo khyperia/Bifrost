@@ -17,23 +17,6 @@ namespace BifrostStandalone
             return null;
         }
 
-        private static ushort[] ConvertToShorts(byte[] bytes)
-        {
-            var result = new ushort[bytes.Length / 2];
-            if (BitConverter.IsLittleEndian)
-            {
-                for (var i = 0; i < bytes.Length / 2; i++)
-                {
-                    var old = bytes[2 * i];
-                    bytes[2 * i] = bytes[2 * i + 1];
-                    bytes[2 * i + 1] = old;
-                }
-            }
-            for (var i = 0; i < result.Length; i++)
-                result[i] = BitConverter.ToUInt16(bytes, i * 2);
-            return result;
-        }
-
         [STAThread]
         static void Main(string[] args)
         {
@@ -42,7 +25,7 @@ namespace BifrostStandalone
             var window = new MainWindow();
             var file = args.Length > 0 ? args[0] : ChooseFile(window);
             var bytes = File.ReadAllBytes(file);
-            var shorts = ConvertToShorts(bytes);
+            var shorts = Extensions.ConvertToShorts(bytes, true);
             var dcpu = new Dcpu();
             dcpu.LoadProgram(shorts);
             dcpu.AddHardware(new GenericKeyboard(window));

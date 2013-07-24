@@ -3,12 +3,6 @@ using System.Collections.Generic;
 
 namespace Bifrost
 {
-    public interface ISystemKeyboard
-    {
-        event Action<ushort> KeyUp;
-        event Action<ushort> KeyDown;
-    }
-
     public class GenericKeyboard : IHardware
     {
         private readonly Queue<ushort> _keyQueue = new Queue<ushort>();
@@ -20,13 +14,7 @@ namespace Bifrost
         public short HardwareVersion { get { return 1; } }
         public int Manufacturer { get { return 0; } }
 
-        public GenericKeyboard(ISystemKeyboard systemKeyboard)
-        {
-            systemKeyboard.KeyDown += SystemKeyboardOnKeyDown;
-            systemKeyboard.KeyUp += SystemKeyboardOnKeyUp;
-        }
-
-        private void SystemKeyboardOnKeyDown(ushort b)
+        public void SystemKeyboardOnKeyDown(ushort b)
         {
             _doInterrupt = true;
             _keyQueue.Enqueue(b);
@@ -35,7 +23,7 @@ namespace Bifrost
             _keyState[b] = true;
         }
 
-        private void SystemKeyboardOnKeyUp(ushort b)
+        public void SystemKeyboardOnKeyUp(ushort b)
         {
             _keyState[b] = false;
         }

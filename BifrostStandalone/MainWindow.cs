@@ -13,7 +13,7 @@ using Bifrost;
 
 namespace BifrostStandalone
 {
-    class MainWindow : Form, ISystemKeyboard, ISystemMonitor
+    class MainWindow : Form, ISystemMonitor
     {
         private readonly Dictionary<Keys, string> _extraMappings = new Dictionary<Keys, string>
                                                                        {
@@ -34,20 +34,21 @@ namespace BifrostStandalone
                                                                            {Keys.Divide, "/"}
                                                                        };
         private Bitmap _backgroundBitmap;
+        private GenericKeyboard _keyboardInst;
 
         public MainWindow()
         {
             base.KeyUp += (sender, args) =>
                               {
                                   var b = GetKeyValue(args.KeyCode, args.Modifiers);
-                                  if (b != 0 && KeyUp != null)
-                                      KeyUp(b);
+                                  if (b != 0 && _keyboardInst != null)
+                                      _keyboardInst.SystemKeyboardOnKeyUp(b);
                               };
             base.KeyDown += (sender, args) =>
                                 {
                                     var b = GetKeyValue(args.KeyCode, args.Modifiers);
-                                    if (b != 0 && KeyDown != null)
-                                        KeyDown(b);
+                                    if (b != 0 && _keyboardInst != null)
+                                        _keyboardInst.SystemKeyboardOnKeyDown(b);
                                 };
             new Thread(() =>
                            {
@@ -71,64 +72,33 @@ namespace BifrostStandalone
         {
             switch (keyCode)
             {
-                case Keys.Up:
-                    return 0x80;
-                case Keys.Down:
-                    return 0x81;
-                case Keys.Left:
-                    return 0x82;
-                case Keys.Right:
-                    return 0x83;
-                case Keys.Back:
-                    return 0x10;
-                case Keys.Return:
-                    return 0x11;
-                case Keys.Insert:
-                    return 0x12;
-                case Keys.Delete:
-                    return 0x13;
-                case Keys.Control:
-                    return 0x91;
-                case Keys.ControlKey:
-                    return 0x91;
+                case Keys.Up: return 0x80;
+                case Keys.Down: return 0x81;
+                case Keys.Left: return 0x82;
+                case Keys.Right: return 0x83;
+                case Keys.Back: return 0x10;
+                case Keys.Return: return 0x11;
+                case Keys.Insert: return 0x12;
+                case Keys.Delete: return 0x13;
+                case Keys.Control: return 0x91;
+                case Keys.ControlKey: return 0x91;
                 case Keys.Shift:
-                case Keys.ShiftKey:
-                    return 0x90;
+                case Keys.ShiftKey: return 0x90;
                 default:
                     const string lowercase = "1234567890;\'-=`,./[]\\";
                     const string uppercase = "!@#$%^&*():\"_+~<>?{}|";
                     switch (keyCode)
                     {
-                        case Keys.NumPad0:
-                            keyCode = Keys.D0;
-                            break;
-                        case Keys.NumPad1:
-                            keyCode = Keys.D1;
-                            break;
-                        case Keys.NumPad2:
-                            keyCode = Keys.D2;
-                            break;
-                        case Keys.NumPad3:
-                            keyCode = Keys.D3;
-                            break;
-                        case Keys.NumPad4:
-                            keyCode = Keys.D4;
-                            break;
-                        case Keys.NumPad5:
-                            keyCode = Keys.D5;
-                            break;
-                        case Keys.NumPad6:
-                            keyCode = Keys.D6;
-                            break;
-                        case Keys.NumPad7:
-                            keyCode = Keys.D7;
-                            break;
-                        case Keys.NumPad8:
-                            keyCode = Keys.D8;
-                            break;
-                        case Keys.NumPad9:
-                            keyCode = Keys.D9;
-                            break;
+                        case Keys.NumPad0: keyCode = Keys.D0; break;
+                        case Keys.NumPad1: keyCode = Keys.D1; break;
+                        case Keys.NumPad2: keyCode = Keys.D2; break;
+                        case Keys.NumPad3: keyCode = Keys.D3; break;
+                        case Keys.NumPad4: keyCode = Keys.D4; break;
+                        case Keys.NumPad5: keyCode = Keys.D5; break;
+                        case Keys.NumPad6: keyCode = Keys.D6; break;
+                        case Keys.NumPad7: keyCode = Keys.D7; break;
+                        case Keys.NumPad8: keyCode = Keys.D8; break;
+                        case Keys.NumPad9: keyCode = Keys.D9; break;
                     }
                     var key = Convert.ToChar(keyCode);
                     if (_extraMappings.ContainsKey(keyCode))
